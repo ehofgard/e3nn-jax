@@ -3,6 +3,64 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
+
+# lie parameters/log coordinates
+def identity_log_coords(shape):
+    r"""Angles of the identity rotation in log coordinates.
+    Args:
+        shape: a tuple of nonnegative integers representing the result shape.
+    Returns:
+        theta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+    """
+    return jnp.zeros(shape), jnp.zeros(shape), jnp.zeros(shape) 
+
+def rand_log_coords(key, shape):
+    r"""Random log coordinates.
+
+    Args:
+        key: A PRNGKey used as the random key.
+        shape: A tuple of nonnegative integers representing the result shape.
+    Returns:
+        theta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+    """
+    x, y, z = jax.random.uniform(key, (3,) + shape)
+    return 2 * jnp.pi * x, 2 * jnp.pi * y, 2* jnp.pi * z
+
+def compose_log_coords(t1a,t2a,t3a,t1b,t2b,t3b):
+    r"""Compose angles.
+    Computes :math:`(theta1,theta2,theta3)` such that :math:`R(theta1,theta2,theta3) = R(t1a,t2a,t3a) \circ R(t1b,t2b,t3b)`
+    Args:
+        theta1_a (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2_a (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3_a (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta1_b (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2_b (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3_b (`jax.numpy.ndarray`): array of shape :math:`(...)`
+    Returns:
+        theta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+    """
+    raise NotImplementedError
+
+def inverse_log_coords(theta1,theta2,theta3):
+    r"""Log coordinates of the inverse rotation.
+    Args:
+        theta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+    Returns:
+        theta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+    """
+    return -theta1,-theta2,-theta3
+
+
 # matrix
 
 
@@ -24,10 +82,8 @@ def rand_matrix(key, shape):
 
 def identity_angles(shape):
     r"""Angles of the identity rotation.
-
     Args:
         shape: a tuple of nonnegative integers representing the result shape.
-
     Returns:
         alpha (`jax.numpy.ndarray`): array of shape :math:`(...)`
         beta (`jax.numpy.ndarray`): array of shape :math:`(...)`
@@ -261,6 +317,19 @@ def matrix_z(angle):
     z = jnp.zeros_like(angle)
     return jnp.stack([jnp.stack([c, -s, z], axis=-1), jnp.stack([s, c, z], axis=-1), jnp.stack([z, z, o], axis=-1)], axis=-2)
 
+def log_coords_to_matrix(theta1, theta2, theta3):
+    r"""Conversion from log coordinates to matrix.
+
+    Args:
+        theta1 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta2 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        theta3 (`jax.numpy.ndarray`): array of shape :math:`(...)`
+
+    Returns:
+        `jax.numpy.ndarray`: array of shape :math:`(..., 3, 3)`
+    """ 
+    theta1, theta2, theta3 = jnp.broadcast_arrays(theta1, theta2, theta3)
+    return matrix_x(theta1) @ matrix_y(theta2) @ matrix_z(theta3)
 
 def angles_to_matrix(alpha, beta, gamma):
     r"""Conversion from angles to matrix.
@@ -275,7 +344,6 @@ def angles_to_matrix(alpha, beta, gamma):
     """
     alpha, beta, gamma = jnp.broadcast_arrays(alpha, beta, gamma)
     return matrix_y(alpha) @ matrix_x(beta) @ matrix_y(gamma)
-
 
 @partial(jax.jit, inline=True)
 def matrix_to_angles(R):
@@ -377,6 +445,7 @@ def matrix_to_axis_angle(R):
     Returns:
         axis (`jax.numpy.ndarray`): array of shape :math:`(..., 3)`
         angle (`jax.numpy.ndarray`): array of shape :math:`(...)`
+        Note this is the Rodrigues formula
     """
     # assert jnp.allclose(jnp.linalg.det(R), 1)
     tr = R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2]

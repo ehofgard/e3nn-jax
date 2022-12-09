@@ -3,6 +3,10 @@ __version__ = "0.13.0"
 from e3nn_jax._src.config import config
 from e3nn_jax._src.rotation import (
     rand_matrix,
+    identity_log_coords,
+    rand_log_coords,
+    compose_log_coords,
+    inverse_log_coords,
     identity_angles,
     rand_angles,
     compose_angles,
@@ -16,6 +20,7 @@ from e3nn_jax._src.rotation import (
     matrix_x,
     matrix_y,
     matrix_z,
+    log_coords_to_matrix,
     angles_to_matrix,
     matrix_to_angles,
     angles_to_quaternion,
